@@ -25,7 +25,9 @@ def predict_trip_price(
             "event_timestamp": [pd.Timestamp.now(tz="UTC")],
         }
     )
-    features = driver_features.get_historical_features(entity_df)
+
+    # Use the online path to get the latest features
+    features = driver_features.get_online_features(entity_df)
 
     rating = features["rating"].iloc[0]
     rating = 5.0 if pd.isna(rating) else float(rating)

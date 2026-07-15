@@ -17,7 +17,7 @@ _feast_repo: &feast_repo
     database: feast
     db_schema: public
     user: ${oc.env:DB_USER}
-    password: ${oc.env:GCP_PROJECT}
+    password: ${oc.env:DB_PASSWORD}
     sslmode: prefer
   entity_key_serialization_version: 3
 

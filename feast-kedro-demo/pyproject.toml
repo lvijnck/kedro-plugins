@@ -9,6 +9,8 @@ dependencies = [
     "feast[gcp,postgres]==0.64.0", # bigquery offline store + postgres online store
     "google-cloud-bigquery>=3.0",
     "pandas>=2.0",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
 ]
 
 # Use the local, in-repo kedro-datasets (editable) so FeastDataset changes are picked up.
