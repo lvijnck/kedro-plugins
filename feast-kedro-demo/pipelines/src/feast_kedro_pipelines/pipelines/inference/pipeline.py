@@ -10,7 +10,9 @@ def create_pipeline(**kwargs) -> Pipeline:
         [
             node(
                 func=predict_trip_price,
-                inputs=["driver_stats_features", "params:inference_params.driver_id", "params:inference_params.distance"],
+                # driver_stats_features loads as a FeastFeatureSource; the
+                # driver id and distance come from runtime parameters.
+                inputs=["driver_stats_features", "params:driver_id", "params:distance"],
                 outputs="predicted_trip_prices",
                 name="predict_trip_price",
             ),

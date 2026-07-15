@@ -1,87 +1,82 @@
 # feast-kedro-demo
 
-A tiny Kedro project that exercises the experimental **`FeastDataset`** (from the
-sibling `../kedro-datasets` checkout): a pipeline generates a dummy
-`driver_stats` DataFrame and writes it to **both** Feast stores —
-
-- **offline store:** BigQuery (`write_to_offline_store`, table bootstrapped from
-  the feature view schema via `create_table`),
-- **online store:** Postgres (from `docker-compose.yml`).
-
-## Layout
+A demo of the experimental **`FeastDataset`** (from the sibling
+`../kedro-datasets`), organised as:
 
 ```
 feast-kedro-demo/
-├── docker-compose.yml / Dockerfile   # Postgres online store
-├── feature_repo/
-│   ├── feature_store.yaml            # offline: bigquery, online: postgres
-│   └── features.py                   # driver Entity + driver_stats FeatureView (BigQuerySource)
-├── conf/base/catalog.yml             # driver_stats_features -> FeastDataset
-└── src/feast_kedro_demo/             # Kedro pipeline (create dummy df -> FeastDataset)
+├── features/     # Feast repo: feature_store.yaml + features.py (feature views)
+└── pipelines/    # Kedro project: feature_ingestion + inference pipelines
 ```
+
+- **features/** — offline store: BigQuery; online store: Postgres. Two feature
+  views: `driver_stats` (online + offline) and `predicted_trip_prices`
+  (offline only, written by inference).
+- **pipelines/** — a Kedro project with two pipelines, both using `FeastDataset`:
+  - `feature_ingestion` — writes dummy `driver_stats` to both stores
+    (`write_mode: online_and_offline`, `create_table: true`).
+  - `inference` — reads a driver's **online** features, predicts an expected
+    trip price, and writes it to the offline-only `predicted_trip_prices`.
+  - It is exposed over HTTP via Kedro's built-in server
+    (`kedro.server.create_http_server`) — "Kedro as a service".
 
 ## Prerequisites
 
-- Python ≥ 3.10, [`uv`](https://docs.astral.sh/uv/), Docker, and the `gcloud`/`bq` CLIs.
-- A GCP project with BigQuery, and a BigQuery **dataset** that already exists
-  (the table is created for you; the dataset is not).
+- Python ≥ 3.10, [`uv`](https://docs.astral.sh/uv/), Docker, `gcloud`/`bq`.
+- A GCP project with a BigQuery **dataset** that already exists (tables are
+  created for you; the dataset is not).
 
-## Setup
+## Run everything in Docker
 
 ```bash
-cd feast-kedro-demo
-
-# 1. Install (pulls in the local, editable kedro-datasets with FeastDataset).
-uv sync
-
-# 2. Configure env + auth.
-cp .env.example .env            # edit GCP_PROJECT / BQ_DATASET
-set -a; source .env; set +a
+cp .env.example .env          # edit GCP_PROJECT / BQ_DATASET
 gcloud auth application-default login
-bq --location=US mk -d "$GCP_PROJECT:$BQ_DATASET"   # if the dataset doesn't exist
+bq --location=US mk -d "$GCP_PROJECT:$BQ_DATASET"   # if it doesn't exist
 
-# 3. Start the Postgres online store.
-docker compose up -d            # or: docker build -t feast-online-postgres . && docker run -p 5432:5432 feast-online-postgres
-
-# 4. Register the feature repo (creates feature_repo/data/registry.db and the
-#    Postgres online tables). Uses feature_store.yaml.
-cd feature_repo && uv run feast apply && cd ..
+make up                        # postgres -> apply -> ingest -> inference server (:8000)
+make run-inference             # POST /run for the inference pipeline
 ```
 
-## Run the pipeline
+`apply` and `ingest` are one-shot jobs; `inference` (the Kedro HTTP server)
+starts only after they complete. The Feast registry is shared through a named
+volume.
+
+## Run locally (no Docker for the app)
 
 ```bash
-uv run kedro run
+make venv                      # uv sync --all-packages (workspace -> one venv)
+docker compose up -d postgres  # online store only
+cp .env.example .env && set -a && source .env && set +a
+
+make apply                     # feast apply (features/)
+make ingest                    # kedro run feature_ingestion
+make serve                     # kedro HTTP server (create_http_server) on :8000
+make run-inference             # in another shell: POST /run
 ```
 
-This saves the dummy DataFrame through `FeastDataset`, which:
-1. creates `"$GCP_PROJECT.$BQ_DATASET.driver_stats"` (if missing) from the
-   feature view schema and appends the rows (offline store), then
-2. pushes the rows to the Postgres online store.
+`POST /run` accepts a Kedro run request; `params` are runtime parameters:
+
+```bash
+curl -X POST localhost:8000/run -H 'content-type: application/json' \
+  -d '{"pipeline_names":["inference"],"params":{"driver_id":1002,"distance":20.0}}'
+```
 
 ## Verify
 
 ```bash
-# Offline (BigQuery):
 bq query --use_legacy_sql=false \
   "SELECT * FROM \`$GCP_PROJECT.$BQ_DATASET.driver_stats\` ORDER BY driver_id"
-
-# Online (Feast -> Postgres):
-cd feature_repo && uv run python - <<'PY'
-from feast import FeatureStore
-store = FeatureStore(repo_path=".")
-print(store.get_online_features(
-    features=["driver_stats:trips", "driver_stats:rating"],
-    entity_rows=[{"driver_id": 1001}, {"driver_id": 1002}, {"driver_id": 1003}],
-).to_dict())
-PY
+bq query --use_legacy_sql=false \
+  "SELECT * FROM \`$GCP_PROJECT.$BQ_DATASET.predicted_trip_prices\`"
 ```
 
 ## Notes
 
-- The `repo` block in `conf/base/catalog.yml` mirrors `feature_repo/feature_store.yaml`
-  (same registry, project, offline/online stores, and
-  `entity_key_serialization_version`). Keep them in sync — the online write must
-  use the same serialization as `feast apply`.
+- The `repo` blocks in `pipelines/conf/base/catalog.yml` and
+  `features/feature_store.yaml` describe the same Feast stores (registry,
+  project, offline/online, `entity_key_serialization_version: 3`). Keep them in sync.
+- `FEAST_REGISTRY` points every component at one registry file: the `Makefile`
+  sets it to `features/data/registry.db` for local runs; docker-compose sets it
+  to a shared `/registry` volume.
 - `FeastDataset` authenticates to BigQuery via Application Default Credentials
-  (there is no `credentials` argument).
+  (no `credentials` argument).

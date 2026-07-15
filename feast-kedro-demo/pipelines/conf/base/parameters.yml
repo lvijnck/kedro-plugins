@@ -1,0 +1,4 @@
+# Defaults for the inference pipeline. Override at runtime, e.g.:
+#   kedro run --pipeline inference --params driver_id=1002,distance=20.0
+driver_id: 1001
+distance: 12.5

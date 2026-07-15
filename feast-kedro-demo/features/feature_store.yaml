@@ -1,9 +1,10 @@
 # Feast repo config used by `feast apply`.
-# Offline store: BigQuery. Online store: the Postgres from docker-compose.
-# Must stay in sync with the `repo` block in conf/base/catalog.yml.
+# Offline store: BigQuery. Online store: Postgres (docker-compose / local).
+# The registry path is shared with the ingestion pipeline and the inference
+# service via the FEAST_REGISTRY env var.
 project: feast_kedro_demo
 provider: local
-registry: data/registry.db
+registry: ${FEAST_REGISTRY}
 
 offline_store:
   type: bigquery
@@ -12,12 +13,12 @@ offline_store:
 
 online_store:
   type: postgres
-  host: localhost
+  host: ${POSTGRES_HOST}
   port: 5432
   database: feast
   db_schema: public
-  user: feast
-  password: feast
+  user: ${DB_USER}
+  password: ${DB_PASSWORD}
   sslmode: prefer
 
 entity_key_serialization_version: 3

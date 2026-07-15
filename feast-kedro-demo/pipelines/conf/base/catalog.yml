@@ -1,9 +1,8 @@
 # FeastDataset catalog entries. The shared `repo` block mirrors
-# feature_repo/feature_store.yaml and points at the registry that
-# `feast apply` materialises. Keys starting with `_` are ignored by Kedro and
+# features/feature_store.yaml. Keys starting with `_` are ignored by Kedro and
 # used here only as a YAML anchor.
 _feast_repo: &feast_repo
-  registry: feature_repo/data/registry.db
+  registry: ${oc.env:FEAST_REGISTRY}
   project: feast_kedro_demo
   provider: local
   offline_store:
@@ -12,7 +11,7 @@ _feast_repo: &feast_repo
     location: US
   online_store:
     type: postgres
-    host: localhost
+    host: ${oc.env:POSTGRES_HOST}
     port: 5432
     database: feast
     db_schema: public
@@ -21,24 +20,22 @@ _feast_repo: &feast_repo
     sslmode: prefer
   entity_key_serialization_version: 3
 
-# driver_stats: written by the ingestion pipeline (offline + online) and read
-# by the inference pipeline (point-in-time from the offline store).
+# driver_stats: written by the ingestion pipeline (offline + online); read by
+# the inference pipeline (online lookup).
 driver_stats_features:
   type: kedro_datasets_experimental.feast.FeastDataset
-  repo:
-    <<: *feast_repo
+  repo: *feast_repo
   load_args:
     feature_view_name: driver_stats
   save_args:
     feature_view_name: driver_stats
-    write_mode: online_and_offline
-    create_table: true
+    create_table: true              # bootstrap the BigQuery table from the feature view schema
+    write_mode: online_and_offline  # write to both offline (BigQuery) and online (Postgres)
 
 # predicted_trip_prices: inference output, offline store only.
 predicted_trip_prices:
   type: kedro_datasets_experimental.feast.FeastDataset
-  repo:
-    <<: *feast_repo
+  repo: *feast_repo
   save_args:
     feature_view_name: predicted_trip_prices
     write_mode: offline

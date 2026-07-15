@@ -1,9 +1,32 @@
-# Spins up the Postgres instance used as Feast's online store.
+# Full demo stack:
+#   postgres -> apply (feast apply) -> ingest (kedro) -> inference (kedro HTTP server)
 #
-#   docker compose up -d
+#   docker compose up -d --build
 #
-# Credentials/ports here must match feature_repo/feature_store.yaml and
-# conf/base/catalog.yml.
+# `apply` and `ingest` are one-shot jobs; `inference` is the long-running Kedro
+# HTTP server (POST /run). Store creds must match features/feature_store.yaml
+# and pipelines/conf/base/catalog.yml.
+
+# Shared config for the workspace containers (apply / ingest / inference).
+x-app: &app
+  build:
+    # Parent dir so the local ../kedro-datasets path dependency is in context.
+    context: ..
+    dockerfile: feast-kedro-demo/Dockerfile
+  environment:
+    GCP_PROJECT: ${GCP_PROJECT}
+    BQ_DATASET: ${BQ_DATASET}
+    POSTGRES_HOST: postgres  # reach the postgres service over the compose network
+    DB_USER: ${DB_USER}
+    DB_PASSWORD: ${DB_PASSWORD}
+    GOOGLE_APPLICATION_CREDENTIALS: /gcp/application_default_credentials.json
+    FEAST_REGISTRY: /registry/registry.db  # shared registry (see the `registry` volume)
+  volumes:
+    # Application Default Credentials for BigQuery.
+    - ${HOME}/.config/gcloud/application_default_credentials.json:/gcp/application_default_credentials.json:ro
+    # Registry produced by `apply`, shared with `ingest` and `inference`.
+    - registry:/registry
+
 services:
   postgres:
     image: postgres:16
@@ -17,10 +40,43 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U feast"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  # One-shot: register the feature repo (writes the registry, creates the
+  # Postgres online tables).
+  apply:
+    <<: *app
+    container_name: feast-apply
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Point Feast at the feature repo (venv is on PATH via the Dockerfile).
+    command: feast --chdir features apply --skip-source-validation
+
+  # One-shot: run the ingestion pipeline (writes features to BigQuery + Postgres).
+  ingest:
+    <<: *app
+    container_name: feast-ingest
+    depends_on:
+      apply:
+        condition: service_completed_successfully
+    command: sh -c "cd pipelines && kedro run --pipeline feature_ingestion"
+
+  # Kedro-as-a-service: the built-in HTTP server. POST /run with
+  # {"pipeline_names": ["inference"], "params": {"driver_id": ..., "distance": ...}}.
+  inference:
+    <<: *app
+    container_name: feast-inference
+    depends_on:
+      ingest:
+        condition: service_completed_successfully
+    command: sh -c "cd pipelines && uvicorn feast_kedro_pipelines.service:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+
 volumes:
   pgdata:
+  registry:

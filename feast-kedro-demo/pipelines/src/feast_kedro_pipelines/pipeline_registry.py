@@ -2,7 +2,7 @@
 
 from kedro.pipeline import Pipeline
 
-from feast_kedro_demo.pipelines import feature_ingestion, inference
+from feast_kedro_pipelines.pipelines import feature_ingestion, inference
 
 
 def register_pipelines() -> dict[str, Pipeline]:

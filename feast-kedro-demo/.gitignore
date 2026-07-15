@@ -4,10 +4,9 @@ __pycache__/
 .env
 
 # Kedro
-logs/
-data/
-conf/local/**
-!conf/local/.gitkeep
+pipelines/logs/
+pipelines/conf/local/**
+!pipelines/conf/local/.gitkeep
 
-# Feast registry / online db artifacts
-feature_repo/data/
+# Feast registry / local artifacts
+features/data/

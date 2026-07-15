@@ -1,4 +1,4 @@
-"""feast-kedro-demo entry point for `python -m feast_kedro_demo`."""
+"""feast-kedro-pipelines entry point for `python -m feast_kedro_pipelines`."""
 
 import sys
 from pathlib import Path

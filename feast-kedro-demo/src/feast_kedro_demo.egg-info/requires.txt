@@ -1,5 +1,0 @@
-kedro<2.0,>=1.5
-kedro-datasets
-feast[gcp,postgres]==0.64.0
-google-cloud-bigquery>=3.0
-pandas>=2.0

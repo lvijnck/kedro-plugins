@@ -1,4 +1,8 @@
-"""Feast feature definitions: a driver-stats feature view backed by BigQuery."""
+"""Feast feature definitions.
+
+- ``driver_stats``: online + offline, written by the ingestion pipeline.
+- ``predicted_trip_prices``: offline only, written by the inference service.
+"""
 
 import os
 from datetime import timedelta
@@ -11,8 +15,6 @@ BQ_DATASET = os.environ.get("BQ_DATASET", "feast_kedro_demo")
 
 driver = Entity(name="driver", join_keys=["driver_id"])
 
-# The offline (batch) source. `FeastDataset(create_table=True)` bootstraps this
-# table from the feature view schema below; the BQ *dataset* must already exist.
 driver_stats_source = BigQuerySource(
     table=f"{GCP_PROJECT}.{BQ_DATASET}.driver_stats",
     timestamp_field="event_timestamp",
