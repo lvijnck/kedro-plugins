@@ -1,4 +1,4 @@
-"""Inference pipeline: read online features from Feast and predict a trip price."""
+"""Inference pipeline: read online drug features and score repurposing candidates."""
 
 from .pipeline import create_pipeline
 

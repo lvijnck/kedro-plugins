@@ -1,8 +1,8 @@
 # Feast repo config used by `feast apply`.
 # Offline store: BigQuery. Online store: Postgres (docker-compose / local).
-# The registry path is shared with the ingestion pipeline and the inference
-# service via the FEAST_REGISTRY env var.
-project: feast_kedro_demo
+# The registry path is shared with the Kedro pipelines via the FEAST_REGISTRY
+# env var.
+project: drug_repurposing
 provider: local
 registry: ${FEAST_REGISTRY}
 

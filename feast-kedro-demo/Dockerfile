@@ -7,6 +7,11 @@ FROM python:3.12-slim
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
+# `make` so the container can run the same Makefile targets as local dev.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends make \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 # The workspace depends on ../kedro-datasets (editable path dep), so both
 # directories must be in the image.
@@ -24,5 +29,6 @@ RUN uv sync --all-packages
 ENV PATH="/app/feast-kedro-demo/.venv/bin:${PATH}"
 
 EXPOSE 8000
-# Default: run the inference service. `apply`/`ingest` override this command.
-CMD ["sh", "-c", "cd services && uvicorn inference_service.main:app --host 0.0.0.0 --port 8000"]
+# Default: serve the HTTP server. Compose overrides this per service (make apply /
+# make features / make materialize).
+CMD ["make", "serve"]

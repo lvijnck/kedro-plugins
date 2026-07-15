@@ -7,7 +7,7 @@ inference pipeline by POSTing a run request (``params`` are runtime parameters):
 
     curl -X POST localhost:8000/run \
         -H 'content-type: application/json' \
-        -d '{"pipeline_names": ["inference"], "params": {"driver_id": 1001, "distance": 12.5}}'
+        -d '{"pipeline_names": ["inference"], "params": {"drug_kg_node_id": "DRUGBANK:DB00619", "disease_kg_node_id": "MONDO:0005148"}}'
 
 See https://kedro.org/blog/kedro-as-a-service.
 """
