@@ -1,0 +1,45 @@
+# FeastDataset catalog entries. The shared `repo` block mirrors
+# feature_repo/feature_store.yaml and points at the registry that
+# `feast apply` materialises. Keys starting with `_` are ignored by Kedro and
+# used here only as a YAML anchor.
+_feast_repo: &feast_repo
+  registry: feature_repo/data/registry.db
+  project: feast_kedro_demo
+  provider: local
+  offline_store:
+    type: bigquery
+    project_id: ${oc.env:GCP_PROJECT}
+    location: US
+  online_store:
+    type: postgres
+    host: localhost
+    port: 5432
+    database: feast
+    db_schema: public
+    user: ${oc.env:DB_USER}
+    password: ${oc.env:GCP_PROJECT}
+    sslmode: prefer
+  entity_key_serialization_version: 3
+
+# driver_stats: written by the ingestion pipeline (offline + online) and read
+# by the inference pipeline (point-in-time from the offline store).
+driver_stats_features:
+  type: kedro_datasets_experimental.feast.FeastDataset
+  repo:
+    <<: *feast_repo
+  load_args:
+    feature_view_name: driver_stats
+  save_args:
+    feature_view_name: driver_stats
+    write_mode: online_and_offline
+    create_table: true
+
+# predicted_trip_prices: inference output, offline store only.
+predicted_trip_prices:
+  type: kedro_datasets_experimental.feast.FeastDataset
+  repo:
+    <<: *feast_repo
+  save_args:
+    feature_view_name: predicted_trip_prices
+    write_mode: offline
+    create_table: true

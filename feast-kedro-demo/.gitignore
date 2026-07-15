@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+
+# Kedro
+logs/
+data/
+conf/local/**
+!conf/local/.gitkeep
+
+# Feast registry / online db artifacts
+feature_repo/data/

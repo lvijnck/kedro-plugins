@@ -1,0 +1,33 @@
+[project]
+name = "feast-kedro-demo"
+version = "0.1.0"
+description = "Demo Kedro project that writes features to Feast (BigQuery offline + Postgres online) through FeastDataset."
+requires-python = ">=3.10"
+dependencies = [
+    "kedro>=1.5,<2.0",
+    "kedro-datasets",              # provides kedro_datasets_experimental.feast.FeastDataset
+    "feast[gcp,postgres]==0.64.0", # bigquery offline store + postgres online store
+    "google-cloud-bigquery>=3.0",
+    "pandas>=2.0",
+]
+
+# Use the local, in-repo kedro-datasets (editable) so FeastDataset changes are picked up.
+[tool.uv.sources]
+kedro-datasets = { path = "../kedro-datasets", editable = true }
+
+[build-system]
+requires = ["setuptools>=61.2"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.kedro]
+package_name = "feast_kedro_demo"
+project_name = "feast-kedro-demo"
+kedro_init_version = "1.5.0"
+tools = "[]"
+example_pipeline = "False"
+
+[tool.kedro_telemetry]
+project_id = "88965a948b424048becb57e3126a0c0f"
