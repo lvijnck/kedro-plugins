@@ -18,7 +18,7 @@ def predict_repurposing_score(
     """
 
     # NOTE: Dataset gives you the ability to specify for which entities features should be retrieved, showing
-    # use of `get_online_features`` here, but would expect users to use `get_historical_features` in a Kedro context.
+    # use of `get_online_features` here, but would expect users to use `get_historical_features` in a Kedro context.
     features = drug_features.get_online_features(
         pd.DataFrame({"drug_kg_node_id": [drug_kg_node_id]})
     )

@@ -6,7 +6,7 @@ requires-python = ">=3.10"
 dependencies = [
     "kedro[server]>=1.5,<2.0",     # [server] adds the built-in FastAPI HTTP server (create_http_server)
     "kedro-datasets",              # provides kedro_datasets_experimental.feast.FeastDataset
-    "feast[gcp,postgres]==0.64.0",
+    "feast[gcp,postgres]==0.65.0.dev38",
     "google-cloud-bigquery>=3.0",
     "pandas>=2.0",
 ]
