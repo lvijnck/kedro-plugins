@@ -1,0 +1,5 @@
+# Defaults for the inference pipeline. Override at runtime, e.g.:
+#   kedro run --pipeline inference \
+#     --params drug_kg_node_id=DRUGBANK:DB01234,disease_kg_node_id=MONDO:0005148
+drug_kg_node_id: "DRUGBANK:DB00945"   # acetylsalicylic acid (aspirin)
+disease_kg_node_id: "MONDO:0005148"   # type 2 diabetes mellitus

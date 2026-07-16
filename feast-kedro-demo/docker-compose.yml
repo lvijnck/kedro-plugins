@@ -1,0 +1,93 @@
+# Full demo stack:
+#   postgres -> apply (feast apply) -> features (kedro) -> inference (kedro HTTP server)
+#
+#   docker compose up -d --build
+#
+# `apply` and `features` are one-shot jobs; `inference` is the long-running Kedro
+# HTTP server (POST /run). Store creds must match features/feature_store.yaml
+# and pipelines/conf/base/catalog.yml.
+
+# Shared config for the workspace containers (apply / ingest / inference).
+x-app: &app
+  build:
+    # Parent dir so the local ../kedro-datasets path dependency is in context.
+    context: ..
+    dockerfile: feast-kedro-demo/Dockerfile
+  environment:
+    GCP_PROJECT: ${GCP_PROJECT}
+    BQ_DATASET: ${BQ_DATASET}
+    POSTGRES_HOST: postgres  # reach the postgres service over the compose network
+    DB_USER: ${DB_USER}
+    DB_PASSWORD: ${DB_PASSWORD}
+    GOOGLE_APPLICATION_CREDENTIALS: /gcp/application_default_credentials.json
+    FEAST_REGISTRY: /registry/registry.db  # shared registry (see the `registry` volume)
+  volumes:
+    # Application Default Credentials for BigQuery.
+    - ${HOME}/.config/gcloud/application_default_credentials.json:/gcp/application_default_credentials.json:ro
+    # Registry produced by `apply`, shared with `ingest` and `inference`. Ideally we would store this feature store remotely in e.g., GCS.
+    - registry:/registry
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: feast-online-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: feast
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # One-shot: register the feature repo (writes the registry, creates the
+  # Postgres online tables).
+  apply:
+    <<: *app
+    container_name: feast-apply
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: make apply
+
+  # One-shot: compute drug features and write them to BigQuery.
+  features:
+    <<: *app
+    container_name: feast-features
+    depends_on:
+      apply:
+        condition: service_completed_successfully
+    command: make features
+
+  # Sync offline -> online up to end-of-day (UTC); assumed to be a daily/hourly
+  # job. Only `drug_feature_view` is materialized: `repurposing_scores` is
+  # written to the online store directly by inference, and its offline table
+  # may not exist yet, so materializing all views would fail on it.
+  materialize:
+    <<: *app
+    container_name: feast-materialize
+    depends_on:
+      features:
+        condition: service_completed_successfully
+    command: make materialize
+
+  # Kedro-as-a-service: the built-in HTTP server. POST /run with
+  # {"pipeline_names": ["inference"], "params": {"drug_kg_node_id": ..., "disease_kg_node_id": ...}}.
+  inference:
+    <<: *app
+    container_name: feast-inference
+    depends_on:
+      features:
+        condition: service_completed_successfully
+    command: make serve
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:
+  registry:

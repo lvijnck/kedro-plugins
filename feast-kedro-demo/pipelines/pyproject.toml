@@ -1,0 +1,29 @@
+[project]
+name = "feast-kedro-pipelines"
+version = "0.1.0"
+description = "Kedro pipelines for a drug-repurposing feature store (feature engineering + inference)."
+requires-python = ">=3.10"
+dependencies = [
+    "kedro[server]>=1.5,<2.0",     # [server] adds the built-in FastAPI HTTP server (create_http_server)
+    "kedro-datasets",              # provides kedro_datasets_experimental.feast.FeastDataset
+    "feast[gcp,postgres]==0.64.0",
+    "google-cloud-bigquery>=3.0",
+    "pandas>=2.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.2"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.kedro]
+package_name = "feast_kedro_pipelines"
+project_name = "feast-kedro-pipelines"
+kedro_init_version = "1.5.0"
+tools = "[]"
+example_pipeline = "False"
+
+[tool.kedro_telemetry]
+project_id = "44e24ff48e7549b79df19bda855b6e8b"

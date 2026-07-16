@@ -1,0 +1,41 @@
+# FeastDataset catalog entries. The shared `repo` block mirrors
+# features/feature_store.yaml. Keys starting with `_` are ignored by Kedro and
+# used here only as a YAML anchor.
+_feast_repo: &feast_repo
+  registry: ${oc.env:FEAST_REGISTRY}
+  project: drug_repurposing
+  provider: local
+  offline_store:
+    type: bigquery
+    project_id: ${oc.env:GCP_PROJECT}
+    location: US
+  online_store:
+    type: postgres
+    host: ${oc.env:POSTGRES_HOST}
+    port: 5432
+    database: feast
+    db_schema: public
+    user: ${oc.env:DB_USER}
+    password: ${oc.env:DB_PASSWORD}
+    sslmode: prefer
+  entity_key_serialization_version: 3
+
+# drug_features: written by the feature-engineering pipeline
+drug_features:
+  type: kedro_datasets_experimental.feast.FeastDataset
+  repo: *feast_repo
+  load_args:
+    feature_view_name: drug_feature_view
+  save_args:
+    feature_view_name: drug_feature_view
+    create_table: true              # bootstrap the BigQuery table from the feature view schema
+    write_mode: offline             # write to offline store only, handled by feast materialize
+
+# repurposing_scores: inference output (drug-disease scores), offline store only.
+repurposing_scores:
+  type: kedro_datasets_experimental.feast.FeastDataset
+  repo: *feast_repo
+  save_args:
+    feature_view_name: repurposing_scores
+    write_mode: online_and_offline  # write to both offline (BigQuery) and online (Postgres)
+    create_table: true
