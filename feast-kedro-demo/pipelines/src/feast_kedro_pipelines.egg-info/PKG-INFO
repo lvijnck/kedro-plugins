@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: feast-kedro-pipelines
+Version: 0.1.0
+Summary: Kedro pipelines for a drug-repurposing feature store (feature engineering + inference).
+Requires-Python: >=3.10
+Requires-Dist: kedro[server]<2.0,>=1.5
+Requires-Dist: kedro-datasets
+Requires-Dist: feast[gcp,postgres]==0.64.0
+Requires-Dist: google-cloud-bigquery>=3.0
+Requires-Dist: pandas>=2.0

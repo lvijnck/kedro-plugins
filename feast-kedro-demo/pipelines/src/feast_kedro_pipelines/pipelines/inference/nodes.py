@@ -22,6 +22,7 @@ def predict_repurposing_score(
     features = drug_features.get_online_features(
         pd.DataFrame({"drug_kg_node_id": [drug_kg_node_id]})
     )
+
     degree = features["degree"].iloc[0]
     degree = 0 if pd.isna(degree) else int(degree)
     is_steroid = features["is_steroid"].iloc[0]

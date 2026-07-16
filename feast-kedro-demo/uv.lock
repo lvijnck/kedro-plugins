@@ -10,6 +10,12 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 
+[manifest]
+members = [
+    "feast-kedro-demo",
+    "feast-kedro-pipelines",
+]
+
 [[package]]
 name = "annotated-doc"
 version = "0.0.4"
@@ -626,11 +632,16 @@ postgres = [
 [[package]]
 name = "feast-kedro-demo"
 version = "0.1.0"
-source = { editable = "." }
+source = { virtual = "." }
+
+[[package]]
+name = "feast-kedro-pipelines"
+version = "0.1.0"
+source = { editable = "pipelines" }
 dependencies = [
     { name = "feast", extra = ["gcp", "postgres"] },
     { name = "google-cloud-bigquery" },
-    { name = "kedro" },
+    { name = "kedro", extra = ["server"] },
     { name = "kedro-datasets" },
     { name = "pandas" },
 ]
@@ -639,7 +650,7 @@ dependencies = [
 requires-dist = [
     { name = "feast", extras = ["gcp", "postgres"], specifier = "==0.64.0" },
     { name = "google-cloud-bigquery", specifier = ">=3.0" },
-    { name = "kedro", specifier = ">=1.5,<2.0" },
+    { name = "kedro", extras = ["server"], specifier = ">=1.5,<2.0" },
     { name = "kedro-datasets", editable = "../kedro-datasets" },
     { name = "pandas", specifier = ">=2.0" },
 ]
@@ -1238,6 +1249,13 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/e9/ce/a2aeefa571722f59d86d2804e38c8c81fcf1642f2b43b0673ac30120af28/kedro-1.5.0-py3-none-any.whl", hash = "sha256:bfec422b88d069135c2f5d7df2e30ce98cd0d1caed62d69497225d3536be8fd9", size = 224572, upload-time = "2026-06-29T14:53:18.227Z" },
 ]
 
+[package.optional-dependencies]
+server = [
+    { name = "fastapi" },
+    { name = "pydantic" },
+    { name = "uvicorn" },
+]
+
 [[package]]
 name = "kedro-datasets"
 source = { editable = "../kedro-datasets" }
@@ -1293,6 +1311,7 @@ requires-dist = [
     { name = "duckdb", marker = "extra == 'test'", specifier = ">=1.4.0" },
     { name = "feast", extras = ["gcp"], marker = "extra == 'experimental'", specifier = "==0.64.0" },
     { name = "feast", extras = ["gcp"], marker = "extra == 'experimental-test'", specifier = "==0.64.0" },
+    { name = "feast", extras = ["gcp"], marker = "extra == 'feast'", specifier = "==0.64.0" },
     { name = "filelock", marker = "extra == 'test'", specifier = ">=3.4.0,<4.0" },
     { name = "fiona", marker = "python_full_version < '3.14' and extra == 'geopandas-genericdataset'", specifier = ">=1.8,<2.0" },
     { name = "fiona", marker = "python_full_version < '3.14' and extra == 'test'", specifier = ">=1.8,<2.0" },
@@ -1474,6 +1493,8 @@ requires-dist = [
     { name = "netcdf4", marker = "extra == 'netcdf-netcdfdataset'", specifier = ">=1.6.4" },
     { name = "networkx", marker = "extra == 'networkx-base'", specifier = "~=3.4" },
     { name = "networkx", marker = "extra == 'test'", specifier = "==3.4" },
+    { name = "numba", marker = "extra == 'experimental'", specifier = ">=0.61" },
+    { name = "numba", marker = "extra == 'experimental-test'", specifier = ">=0.61" },
     { name = "numpy", marker = "extra == 'safetensors-safetensorsdataset'" },
     { name = "openai", marker = "extra == 'experimental-test'", specifier = ">=2.3.0" },
     { name = "openai", marker = "extra == 'langfuse'", specifier = ">=2.3.0" },
@@ -1613,7 +1634,7 @@ requires-dist = [
     { name = "xlsx2csv", marker = "extra == 'polars-eagerpolarsdataset'", specifier = ">=0.8.0" },
     { name = "xlsxwriter", marker = "extra == 'test'", specifier = "~=1.0" },
 ]
-provides-extras = ["pandas-base", "spark-base", "hdfs-base", "s3fs-base", "polars-base", "plotly-base", "delta-base", "networkx-base", "spark-core", "spark-local", "spark-databricks", "spark-emr", "spark-s3", "spark-gcs", "spark-azure", "spark-hdfs", "spark", "spark-cloud", "spark-deltatabledataset", "spark-sparkdataset", "spark-sparkhivedataset", "spark-sparkjdbcdataset", "spark-sparkstreamingdataset", "spark-all", "api-apidataset", "api", "biosequence-biosequencedataset", "biosequence", "dask-csvdataset", "dask-parquetdataset", "dask", "databricks-managedtabledataset", "databricks", "geopandas-genericdataset", "geopandas", "holoviews-holoviewswriter", "holoviews", "huggingface-hfdataset", "huggingface-hftransformerpipelinedataset", "huggingface-arrowdataset", "huggingface-csvdataset", "huggingface-jsondataset", "huggingface-parquetdataset", "huggingface", "ibis-athena", "ibis-bigquery", "ibis-clickhouse", "ibis-dask", "ibis-databricks", "ibis-datafusion", "ibis-druid", "ibis-duckdb", "ibis-exasol", "ibis-flink", "ibis-impala", "ibis-materialize", "ibis-mssql", "ibis-mysql", "ibis-oracle", "ibis-pandas", "ibis-polars", "ibis-postgres", "ibis-pyspark", "ibis-risingwave", "ibis-singlestoredb", "ibis-snowflake", "ibis-sqlite", "ibis-trino", "ibis", "json-jsondataset", "json", "langchain-chatopenaidataset", "langchain-openaiembeddingsdataset", "langchain-chatanthropicdataset", "langchain-chatcoheredataset", "matlab-matlabdataset", "matlab", "matplotlib-matplotlibdataset", "matplotlib", "networkx-gmldataset", "networkx-graphmldataset", "networkx-jsondataset", "networkx", "openxml-docxdataset", "openxml-pptxdataset", "openxml", "optuna-studydataset", "optuna", "pandas-csvdataset", "pandas-deltatabledataset", "pandas-exceldataset", "pandas-featherdataset", "pandas-gbqtabledataset", "pandas-gbqquerydataset", "pandas-genericdataset", "pandas-hdfdataset", "pandas-jsondataset", "pandas-parquetdataset", "pandas-sqltabledataset", "pandas-sqlquerydataset", "pandas-xmldataset", "pandas", "pickle-pickledataset", "pickle", "pillow-imagedataset", "pillow", "plotly-htmldataset", "plotly-jsondataset", "plotly-plotlydataset", "plotly", "polars-csvdataset", "polars-eagerpolarsdataset", "polars-lazypolarsdataset", "polars", "redis-pickledataset", "redis", "snowflake-snowparktabledataset", "snowflake", "svmlight-svmlightdataset", "svmlight", "tensorflow-tensorflowmodeldataset", "tensorflow", "text-textdataset", "text", "yaml-yamldataset", "yaml", "chromadb-chromadbdataset", "chromadb", "darts-torch-model-dataset", "darts", "databricks-externaltabledataset", "langchain-promptdataset", "langchain", "langfuse-evaluationdataset", "langfuse-promptdataset", "langfuse-tracedataset", "langfuse-tracedataset-autogen", "langfuse", "mlrun", "opik-evaluationdataset", "opik-promptdataset", "opik-tracedataset", "opik-tracedataset-autogen", "opik", "netcdf-netcdfdataset", "netcdf", "pypdf-pdfdataset", "pypdf", "prophet-dataset", "prophet", "pytorch-dataset", "pytorch", "rioxarray-geotiffdataset", "rioxarray", "safetensors-safetensorsdataset", "safetensors", "video-videodataset", "video", "weaviate-dataset", "weaviate", "docs", "test", "lint", "experimental", "experimental-test", "all"]
+provides-extras = ["pandas-base", "spark-base", "hdfs-base", "s3fs-base", "polars-base", "plotly-base", "delta-base", "networkx-base", "spark-core", "spark-local", "spark-databricks", "spark-emr", "spark-s3", "spark-gcs", "spark-azure", "spark-hdfs", "spark", "spark-cloud", "spark-deltatabledataset", "spark-sparkdataset", "spark-sparkhivedataset", "spark-sparkjdbcdataset", "spark-sparkstreamingdataset", "spark-all", "api-apidataset", "api", "biosequence-biosequencedataset", "biosequence", "dask-csvdataset", "dask-parquetdataset", "dask", "databricks-managedtabledataset", "databricks", "geopandas-genericdataset", "geopandas", "holoviews-holoviewswriter", "holoviews", "huggingface-hfdataset", "huggingface-hftransformerpipelinedataset", "huggingface-arrowdataset", "huggingface-csvdataset", "huggingface-jsondataset", "huggingface-parquetdataset", "huggingface", "ibis-athena", "ibis-bigquery", "ibis-clickhouse", "ibis-dask", "ibis-databricks", "ibis-datafusion", "ibis-druid", "ibis-duckdb", "ibis-exasol", "ibis-flink", "ibis-impala", "ibis-materialize", "ibis-mssql", "ibis-mysql", "ibis-oracle", "ibis-pandas", "ibis-polars", "ibis-postgres", "ibis-pyspark", "ibis-risingwave", "ibis-singlestoredb", "ibis-snowflake", "ibis-sqlite", "ibis-trino", "ibis", "json-jsondataset", "json", "langchain-chatopenaidataset", "langchain-openaiembeddingsdataset", "langchain-chatanthropicdataset", "langchain-chatcoheredataset", "matlab-matlabdataset", "matlab", "matplotlib-matplotlibdataset", "matplotlib", "networkx-gmldataset", "networkx-graphmldataset", "networkx-jsondataset", "networkx", "openxml-docxdataset", "openxml-pptxdataset", "openxml", "optuna-studydataset", "optuna", "pandas-csvdataset", "pandas-deltatabledataset", "pandas-exceldataset", "pandas-featherdataset", "pandas-gbqtabledataset", "pandas-gbqquerydataset", "pandas-genericdataset", "pandas-hdfdataset", "pandas-jsondataset", "pandas-parquetdataset", "pandas-sqltabledataset", "pandas-sqlquerydataset", "pandas-xmldataset", "pandas", "pickle-pickledataset", "pickle", "pillow-imagedataset", "pillow", "plotly-htmldataset", "plotly-jsondataset", "plotly-plotlydataset", "plotly", "polars-csvdataset", "polars-eagerpolarsdataset", "polars-lazypolarsdataset", "polars", "redis-pickledataset", "redis", "snowflake-snowparktabledataset", "snowflake", "svmlight-svmlightdataset", "svmlight", "tensorflow-tensorflowmodeldataset", "tensorflow", "text-textdataset", "text", "yaml-yamldataset", "yaml", "chromadb-chromadbdataset", "chromadb", "darts-torch-model-dataset", "darts", "databricks-externaltabledataset", "feast", "langchain-promptdataset", "langchain", "langfuse-evaluationdataset", "langfuse-promptdataset", "langfuse-tracedataset", "langfuse-tracedataset-autogen", "langfuse", "mlrun", "opik-evaluationdataset", "opik-promptdataset", "opik-tracedataset", "opik-tracedataset-autogen", "opik", "netcdf-netcdfdataset", "netcdf", "pypdf-pdfdataset", "pypdf", "prophet-dataset", "prophet", "pytorch-dataset", "pytorch", "rioxarray-geotiffdataset", "rioxarray", "safetensors-safetensorsdataset", "safetensors", "video-videodataset", "video", "weaviate-dataset", "weaviate", "docs", "test", "lint", "experimental", "experimental-test", "all"]
 
 [[package]]
 name = "kedro-telemetry"

@@ -1,5 +1,11 @@
 .PHONY: venv up apply features materialize serve run-inference down
 
+ifeq ($(wildcard .env),)
+
+$(error Missing .env file. Copy .env.example to .env and configure it.)
+
+endif
+
 # `-include` so a missing .env is fine in the container (env comes from compose).
 -include .env
 export

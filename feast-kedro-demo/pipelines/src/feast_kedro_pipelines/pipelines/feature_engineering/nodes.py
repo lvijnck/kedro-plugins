@@ -2,6 +2,8 @@
 
 import pandas as pd
 
+from kedro_datasets_experimental.feast.feast_dataset import FeastFeatureSource
+
 
 def create_drug_features() -> pd.DataFrame:
     """Compute dummy knowledge-graph features for a few drugs.
@@ -24,3 +26,19 @@ def create_drug_features() -> pd.DataFrame:
             "event_timestamp": [now] * 3,
         }
     )
+
+
+def print_drug_features(drug_features: FeastFeatureSource) -> None:
+    """Fetch and print all drug features from the offline store.
+
+    Uses timestamp-range retrieval (no entity dataframe): every feature row
+    written within the window is returned, so this echoes the whole feature
+    view rather than a fixed set of entities.
+    """
+    end = pd.Timestamp.now(tz="UTC")
+    start = end - pd.Timedelta(days=3650)
+    features = drug_features.get_historical_features(
+        start_date=start.to_pydatetime(),
+        end_date=end.to_pydatetime(),
+    )
+    print(features.to_string(index=False))
