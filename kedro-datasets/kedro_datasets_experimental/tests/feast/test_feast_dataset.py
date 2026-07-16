@@ -14,6 +14,7 @@ from kedro.io.core import DatasetError
 from kedro_datasets_experimental.feast import feast_dataset as feast_module
 from kedro_datasets_experimental.feast.feast_dataset import FeastDataset
 
+
 @pytest.fixture
 def data():
     """Three more drivers to append on top of the seeded one."""
@@ -53,7 +54,12 @@ def feature_view_name():
 def repo(registry, offline_store, online_store):
     """Repo config used by the ``FeastDataset`` under test."""
     return {
-        "registry": registry,
+        # Pass the registry as a dict with an explicit ``registry_store_type`` so
+        # Feast skips its URI-scheme guessing. On Windows a bare path like
+        # ``C:\\...\\registry.db`` is parsed as scheme ``c`` (unsupported); naming
+        # the store type routes straight to FileRegistryStore, which reads the
+        # path with ``pathlib.Path``.
+        "registry": {"path": registry, "registry_store_type": "FileRegistryStore"},
         "project": "test_project",
         "provider": "local",
         "offline_store": offline_store,
@@ -148,6 +154,32 @@ def test_save_then_load_round_trips_through_offline_store(
     )
     trips = [None if pd.isna(v) else int(v) for v in online["trips"]]
     assert trips == expected_online_trips
+
+
+def test_load_historical_features_timestamp_range(
+    store, repo, feature_view_name, data
+):
+    # Timestamp-range retrieval: no entity_df, just a window. Feast returns the
+    # feature rows in the window without an entity join -- the seeded driver 0
+    # plus the three drivers appended by save.
+    dataset = FeastDataset(
+        repo=repo,
+        save_args={"feature_view_name": feature_view_name},
+        load_args={"feature_view_name": feature_view_name},
+    )
+    dataset.save(data)
+
+    out = (
+        dataset.load()
+        .get_historical_features(
+            start_date=pd.Timestamp("2024-01-01", tz="UTC").to_pydatetime(),
+            end_date=pd.Timestamp("2024-01-04", tz="UTC").to_pydatetime(),
+        )
+        .sort_values("driver_id")
+        .reset_index(drop=True)
+    )
+    assert out["driver_id"].tolist() == [0, 1, 2, 3]
+    assert out["trips"].tolist() == [100, 10, 20, 30]
 
 
 def test_create_table_on_non_bigquery_source_raises(
