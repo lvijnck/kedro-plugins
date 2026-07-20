@@ -1,0 +1,19 @@
+"""Nodes for the feature_b pipeline."""
+
+import pandas as pd
+
+from feast_kedro_pipelines.entities import KEY_COLUMNS
+
+
+def create_feature_b(candidates: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Compute feature B for the candidate pairs and write it to `feature_b_view`.
+
+    Returns the feature rows (persisted to Feast) plus the candidate pairs passed
+    through unchanged, so a downstream filter can depend on this node (ensuring
+    the feature is written before it is read back).
+    """
+    pairs = candidates[KEY_COLUMNS].reset_index(drop=True)
+    features = pairs.copy()
+    features["feature_b"] = ["high" if i % 2 == 0 else "low" for i in range(len(features))]
+    features["event_timestamp"] = pd.Timestamp.now(tz="UTC")
+    return features, pairs

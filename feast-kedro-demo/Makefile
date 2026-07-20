@@ -1,4 +1,4 @@
-.PHONY: venv up apply features materialize serve run-inference down
+.PHONY: venv up apply features materialize serve run-inference run-filter down
 
 ifeq ($(wildcard .env),)
 
@@ -57,3 +57,9 @@ feast-ui:
 run-inference:
 	curl -X POST localhost:8000/run -H 'content-type: application/json' \
 		-d '{"pipeline_names":["inference"],"params":{"drug_kg_node_id":"DRUGBANK:DB00945","disease_kg_node_id":"MONDO:0005120"}}'
+
+# Filter drugs over HTTP: computes the referenced feature(s) first, then runs
+# the filtering pipeline with the given filters.
+run-filter:
+	curl -X POST localhost:8000/filter -H 'content-type: application/json' \
+	-d '{"input_dataset": "candidates", "filters": [{"feature":"a","value":"foo"},{"feature":"b","value":"high"}]}'
