@@ -3,3 +3,13 @@
 #     --params drug_kg_node_id=DRUGBANK:DB01234,disease_kg_node_id=MONDO:0005148
 drug_kg_node_id: "DRUGBANK:DB00945"   # acetylsalicylic acid (aspirin)
 disease_kg_node_id: "MONDO:0005148"   # type 2 diabetes mellitus
+
+# Drug/disease pairs the feature + filtering pipelines operate on. Each entry is
+# {drug_kg_node_id: ..., disease_kg_node_id: ...}. Overridden at runtime by the
+# /filter HTTP endpoint.
+entities: []
+
+# Filters applied by the `filtering` pipeline. Each entry is
+# {feature: a|b, value: <match>}; a pair is kept only if every filter matches.
+# Overridden at runtime by the /filter HTTP endpoint.
+filters: []

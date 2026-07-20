@@ -1,5 +1,5 @@
 kedro[server]<2.0,>=1.5
 kedro-datasets
-feast[gcp,postgres]==0.64.0
+feast[gcp,postgres]==0.65.0.dev38
 google-cloud-bigquery>=3.0
 pandas>=2.0
