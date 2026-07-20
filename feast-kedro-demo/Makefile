@@ -61,6 +61,5 @@ run-inference:
 # Filter drugs over HTTP: computes the referenced feature(s) first, then runs
 # the filtering pipeline with the given filters.
 run-filter:
-	curl -X POST localhost:8000/filter-iterative -H 'content-type: application/json' \
-		-d '{"filters":[{"feature":"a","value":"foo"},{"feature":"b","value":"high"}]}'
-
+	curl -X POST localhost:8000/filter -H 'content-type: application/json' \
+	-d '{"input_dataset": "candidates", "filters": [{"feature":"a","value":"foo"},{"feature":"b","value":"high"}]}'

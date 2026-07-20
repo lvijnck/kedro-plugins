@@ -4,7 +4,7 @@ import pandas as pd
 
 from kedro_datasets_experimental.feast.feast_dataset import FeastFeatureSource
 
-_KEY_COLUMNS = ["drug_kg_node_id", "disease_kg_node_id"]
+from feast_kedro_pipelines.entities import KEY_COLUMNS
 
 
 def filter_drugs(
@@ -14,17 +14,15 @@ def filter_drugs(
 ) -> pd.DataFrame:
     """Keep the candidate pairs whose feature values match every filter.
 
-    Reads features for the current ``candidates`` (from the working-set catalog
-    dataset) via a point-in-time join, applies each filter
-    ``{"feature": "a", "value": "foo"}`` as ``feature_a == "foo"`` (AND-ed), and
-    returns the surviving pairs. The result is written back through the catalog
-    (``iterative_output``), narrowing the working set for the next run.
+    Retrieves features for ``candidates`` from the feature service via a
+    point-in-time join, then applies each ``{"feature": "a", "value": "foo"}``
+    as ``feature_a == "foo"`` (AND-ed). Returns the surviving pairs.
     """
-    survivors = candidates[_KEY_COLUMNS].reset_index(drop=True)
-    if survivors.empty:
-        return survivors
+    pairs = candidates[KEY_COLUMNS].reset_index(drop=True)
+    if pairs.empty:
+        return pairs
 
-    entity_df = survivors.copy()
+    entity_df = pairs.copy()
     entity_df["event_timestamp"] = pd.Timestamp.now(tz="UTC")
     df = filter_features.get_historical_features(entity_df=entity_df)
 
@@ -37,6 +35,4 @@ def filter_drugs(
             )
         df = df[df[column] == f["value"]]
 
-    survivors = df[_KEY_COLUMNS].reset_index(drop=True)
-    print(survivors.to_string(index=False))
-    return survivors
+    return df[KEY_COLUMNS].reset_index(drop=True)

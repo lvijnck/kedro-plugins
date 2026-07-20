@@ -2,17 +2,18 @@
 
 import pandas as pd
 
-_KEY_COLUMNS = ["drug_kg_node_id", "disease_kg_node_id"]
+from feast_kedro_pipelines.entities import KEY_COLUMNS
 
 
-def create_feature_a(candidates: pd.DataFrame) -> pd.DataFrame:
-    """Insert feature A values for the current candidate pairs into `feature_a_view`.
+def create_feature_a(candidates: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Compute feature A for the candidate pairs and write it to `feature_a_view`.
 
-    ``candidates`` is read from the working-set catalog dataset (the pairs that
-    survive so far). Feature values are a toy deterministic assignment; the
-    returned frame is written to Feast.
+    Returns the feature rows (persisted to Feast) plus the candidate pairs passed
+    through unchanged, so a downstream filter can depend on this node (ensuring
+    the feature is written before it is read back).
     """
-    df = candidates[_KEY_COLUMNS].reset_index(drop=True)
-    df["feature_a"] = ["foo" if i % 2 == 0 else "bar" for i in range(len(df))]
-    df["event_timestamp"] = pd.Timestamp.now(tz="UTC")
-    return df
+    pairs = candidates[KEY_COLUMNS].reset_index(drop=True)
+    features = pairs.copy()
+    features["feature_a"] = ["foo" if i % 2 == 0 else "bar" for i in range(len(features))]
+    features["event_timestamp"] = pd.Timestamp.now(tz="UTC")
+    return features, pairs
