@@ -28,7 +28,8 @@ PROJECT_PATH = Path(__file__).resolve().parents[2]
 
 app = create_http_server(project_path=str(PROJECT_PATH))
 
-# Final (in-memory) output the last filter writes and the endpoint reads back.
+# Final (in-memory) output the last filter writes and the endpoint reads back,
+# if you want in-memory storage you can turn it into a factory dataset.
 SURVIVORS = "survivors"
 # Maps a filter's `feature` key to that feature's pipeline builder.
 FEATURE_PIPELINES: dict[str, Callable[..., Pipeline]] = {
