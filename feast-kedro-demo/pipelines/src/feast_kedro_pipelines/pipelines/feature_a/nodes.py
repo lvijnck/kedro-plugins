@@ -2,27 +2,17 @@
 
 import pandas as pd
 
+_KEY_COLUMNS = ["drug_kg_node_id", "disease_kg_node_id"]
 
-def create_feature_a() -> pd.DataFrame:
-    """Insert feature A values for a few drug/disease pairs into `feature_a_view`.
 
-    Columns match the feature view schema (drug + disease entity keys, the
-    ``feature_a`` feature) plus the required ``event_timestamp``.
+def create_feature_a(candidates: pd.DataFrame) -> pd.DataFrame:
+    """Insert feature A values for the current candidate pairs into `feature_a_view`.
+
+    ``candidates`` is read from the working-set catalog dataset (the pairs that
+    survive so far). Feature values are a toy deterministic assignment; the
+    returned frame is written to Feast.
     """
-    now = pd.Timestamp.now(tz="UTC")
-    return pd.DataFrame(
-        {
-            "drug_kg_node_id": [
-                "DRUGBANK:DB00945",  # acetylsalicylic acid (aspirin)
-                "DRUGBANK:DB00619",  # imatinib
-                "DRUGBANK:DB01234",  # dexamethasone
-            ],
-            "disease_kg_node_id": [
-                "MONDO:0005148",  # type 2 diabetes mellitus
-                "MONDO:0005148",
-                "MONDO:0005148",
-            ],
-            "feature_a": ["foo", "bar", "foo"],
-            "event_timestamp": [now] * 3,
-        }
-    )
+    df = candidates[_KEY_COLUMNS].reset_index(drop=True)
+    df["feature_a"] = ["foo" if i % 2 == 0 else "bar" for i in range(len(df))]
+    df["event_timestamp"] = pd.Timestamp.now(tz="UTC")
+    return df

@@ -11,9 +11,9 @@ def create_pipeline(**kwargs) -> Pipeline:
             node(
                 func=filter_drugs,
                 # filter_features loads from the feature service (both views);
-                # filters come from runtime parameters.
-                inputs=["filter_features", "params:filters"],
-                outputs="filtered",  # unregistered -> in-memory result
+                # candidates is the current working set; filters are runtime params.
+                inputs=["filter_features", "input", "params:filters"],
+                outputs="iterative_output",  # survivors -> working-set file
                 name="filter",
             ),
         ]

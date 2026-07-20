@@ -10,7 +10,7 @@ def create_pipeline(**kwargs) -> Pipeline:
         [
             node(
                 func=create_feature_a,
-                inputs=None,
+                inputs="input",  # current candidate pairs (catalog)
                 outputs="feature_a",  # -> feature_a_view (see catalog.yml)
                 name="create_feature_a",
             ),

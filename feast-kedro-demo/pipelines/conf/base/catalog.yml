@@ -63,3 +63,22 @@ filter_features:
   repo: *feast_repo
   load_args:
     feature_service_name: filter_feature_service
+
+# candidates: the pristine seed of drug/disease pairs the filter flow starts
+# from (read-only; never overwritten).
+candidates:
+  type: pandas.CSVDataset
+  filepath: data/candidates.csv
+
+# input: the working candidate set. The `prime` pipeline copies the seed into
+# it; each filtering run then narrows it in place. `input` (read) and
+# `iterative_output` (write) point at the SAME file so the filtering pipeline can
+# read the current set and write the survivors back through the catalog (a node
+# cannot use one name as both input and output).
+input:
+  type: pandas.CSVDataset
+  filepath: data/input.csv
+
+iterative_output:
+  type: pandas.CSVDataset
+  filepath: data/input.csv

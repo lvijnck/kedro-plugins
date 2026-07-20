@@ -9,13 +9,15 @@ inference pipeline by POSTing a run request (``params`` are runtime parameters):
         -H 'content-type: application/json' \
         -d '{"pipeline_names": ["inference"], "params": {"drug_kg_node_id": "DRUGBANK:DB00619", "disease_kg_node_id": "MONDO:0005148"}}'
 
-On top of the built-in routes this module adds ``/filter``. Callers don't pass
-pipeline names — they pass a list of feature filters. The endpoint runs the
-feature pipeline(s) needed to compute the referenced features first, then runs
-the ``filtering`` pipeline (which reads the feature service and applies the
-filters):
+On top of the built-in routes this module adds ``/filter-iterative``. The
+candidate drug/disease pairs are seeded from the ``candidates`` catalog dataset
+(``data/candidates.csv``) and flow between runs through the catalog; callers only
+pass feature filters (never entities or pipeline names). For each filter in turn
+it computes that feature for the *current* candidates, applies the filter, and
+writes the survivors back through the catalog, so later features are only
+computed for what is left:
 
-    curl -X POST localhost:8000/filter \
+    curl -X POST localhost:8000/filter-iterative \
         -H 'content-type: application/json' \
         -d '{"filters": [{"feature": "a", "value": "foo"}, {"feature": "b", "value": "high"}]}'
 
@@ -30,8 +32,8 @@ from pydantic import BaseModel, Field
 
 from kedro.framework.session.service_session import KedroServiceSession
 from kedro.server import create_http_server
-from kedro.server.models import RunRequest, RunResponse
 from kedro.server.http_server import _execute_pipeline
+from kedro.server.models import RunRequest, RunResponse
 
 # Kedro project root (…/pipelines/src/feast_kedro_pipelines/service.py -> pipelines/).
 PROJECT_PATH = Path(__file__).resolve().parents[2]
@@ -44,8 +46,13 @@ FEATURE_PIPELINES: dict[str, str] = {
     "a": "feature_a",
     "b": "feature_b",
 }
-# Pipeline that reads the feature service and applies the filters.
+# Copies the candidate seed into the working set (run once per request).
+PRIME_PIPELINE = "prime"
+# Reads the feature service + working set, applies filters, writes survivors.
 FILTER_PIPELINE = "filtering"
+# Working-set catalog dataset (read handle), inspected only to report survivors.
+_WORKING_DATASET = "input"
+_KEY_COLUMNS = ["drug_kg_node_id", "disease_kg_node_id"]
 
 
 class Filter(BaseModel):
@@ -56,7 +63,7 @@ class Filter(BaseModel):
 
 
 class FilterRequest(BaseModel):
-    """Request body for the ``/filter`` endpoint."""
+    """Request body shared by ``/filter`` and ``/filter-iterative``."""
 
     filters: list[Filter] = Field(
         ...,
@@ -65,16 +72,23 @@ class FilterRequest(BaseModel):
     )
 
 
-class FilterResponse(BaseModel):
-    """Aggregated result of a ``/filter`` invocation."""
+class IterativeStep(BaseModel):
+    """One filter's iteration: compute the feature, then apply the filter."""
+
+    filter: dict = Field(description="The filter applied in this iteration.")
+    feature_run: RunResponse = Field(description="Result of the feature pipeline run.")
+    filter_run: RunResponse | None = Field(
+        default=None, description="Result of the filtering run (absent if feature run failed)."
+    )
+    remaining: int = Field(description="Candidate pairs remaining after this step.")
+
+
+class IterativeResponse(BaseModel):
+    """Aggregated result of a ``/filter-iterative`` invocation."""
 
     status: str = Field(description="'success' if every run succeeded, else 'failure'.")
-    pipelines: list[str] = Field(
-        description="Pipelines executed, in order (feature pipelines then filtering)."
-    )
-    results: list[RunResponse] = Field(
-        description="Per-pipeline run results, in execution order."
-    )
+    steps: list[IterativeStep] = Field(description="Per-filter iterations, in order.")
+    remaining: list[dict] = Field(description="Final surviving drug/disease pairs.")
 
 
 def _get_session() -> KedroServiceSession:
@@ -93,21 +107,33 @@ def _get_session() -> KedroServiceSession:
         return app.state.session
 
 
-@app.post("/filter", response_model=FilterResponse, tags=["pipeline"])
-def run_filter(request: FilterRequest) -> FilterResponse:
-    """Compute the features referenced by the filters, then filter drugs.
+def _run(
+    session: KedroServiceSession,
+    name: str,
+    params: dict[str, Any] | None = None,
+) -> RunResponse:
+    """Run a single pipeline and return its structured result."""
+    return _execute_pipeline(
+        session=session,
+        request=RunRequest(pipeline_names=[name], params=params),
+    )
 
-    The feature pipeline for each referenced feature is run first (deduplicated,
-    in first-seen order) so the features are freshly written to Feast, then the
-    ``filtering`` pipeline runs with the filters passed as a runtime parameter.
-    Execution stops at the first failing run and returns the partial results.
+
+def _read_working(session: KedroServiceSession) -> list[dict]:
+    """Read the working-set catalog dataset (survivors) for the response.
+
+    This inspects the result the pipelines wrote through the catalog; the
+    candidate set itself is passed run-to-run via the catalog, never in memory.
     """
-    # Resolve which feature pipelines to run, preserving first-seen order and
-    # rejecting unknown features up front (before running anything).
-    feature_pipelines: list[str] = []
-    for f in request.filters:
-        pipeline_name = FEATURE_PIPELINES.get(f.feature)
-        if pipeline_name is None:
+    catalog = session.load_context().catalog
+    df = catalog[_WORKING_DATASET].load()
+    return df[_KEY_COLUMNS].to_dict(orient="records")
+
+
+def _validate_features(filters: list[Filter]) -> None:
+    """Reject filters referencing unknown features before running anything."""
+    for f in filters:
+        if f.feature not in FEATURE_PIPELINES:
             raise HTTPException(
                 status_code=422,
                 detail=(
@@ -115,32 +141,67 @@ def run_filter(request: FilterRequest) -> FilterResponse:
                     f"Known features: {sorted(FEATURE_PIPELINES)}."
                 ),
             )
-        if pipeline_name not in feature_pipelines:
-            feature_pipelines.append(pipeline_name)
+
+
+def _prime(session: KedroServiceSession) -> None:
+    """Reset the working set from the seed; raise 500 if it fails."""
+    result = _run(session, PRIME_PIPELINE)
+    if result.status == "failure":
+        raise HTTPException(
+            status_code=500,
+            detail={"stage": PRIME_PIPELINE, "error": result.error.model_dump()},
+        )
+
+
+@app.post("/filter-iterative", response_model=IterativeResponse, tags=["pipeline"])
+def run_filter_iterative(request: FilterRequest) -> IterativeResponse:
+    """Apply the filters one at a time, narrowing the working set each step.
+
+    Seeds the working set (``prime``), then for each filter in order: run its
+    feature pipeline over the current working candidates, then run ``filtering``
+    with just that filter — which writes the survivors back through the catalog.
+    The next feature pipeline reads that narrowed set, so later features are only
+    computed for what remains. Stops at the first failure, or early once empty.
+    """
+    _validate_features(request.filters)
 
     session = _get_session()
-    executed: list[str] = []
-    results: list[RunResponse] = []
+    _prime(session)
+    steps: list[IterativeStep] = []
 
-    def _run(name: str, params: dict[str, Any] | None = None) -> bool:
-        result = _execute_pipeline(
-            session=session,
-            request=RunRequest(pipeline_names=[name], params=params),
+    for f in request.filters:
+        filter_param = f.model_dump()
+
+        # 1. Compute this feature for the current working candidates.
+        feature_run = _run(session, FEATURE_PIPELINES[f.feature])
+        if feature_run.status == "failure":
+            steps.append(
+                IterativeStep(
+                    filter=filter_param,
+                    feature_run=feature_run,
+                    remaining=len(_read_working(session)),
+                )
+            )
+            return IterativeResponse(
+                status="failure", steps=steps, remaining=_read_working(session)
+            )
+
+        # 2. Apply this single filter; survivors are written back via the catalog.
+        filter_run = _run(session, FILTER_PIPELINE, {"filters": [filter_param]})
+        remaining = _read_working(session)
+        steps.append(
+            IterativeStep(
+                filter=filter_param,
+                feature_run=feature_run,
+                filter_run=filter_run,
+                remaining=len(remaining),
+            )
         )
-        executed.append(name)
-        results.append(result)
-        return result.status == "success"
+        if filter_run.status == "failure":
+            return IterativeResponse(status="failure", steps=steps, remaining=remaining)
+        if not remaining:
+            break  # nothing survives; no point computing further features
 
-    # 1. Compute features. 2. Filter, passing the filters as a runtime param.
-    for name in feature_pipelines:
-        if not _run(name):
-            return FilterResponse(status="failure", pipelines=executed, results=results)
-
-    filters_param = [f.model_dump() for f in request.filters]
-    ok = _run(FILTER_PIPELINE, params={"filters": filters_param})
-
-    return FilterResponse(
-        status="success" if ok else "failure",
-        pipelines=executed,
-        results=results,
+    return IterativeResponse(
+        status="success", steps=steps, remaining=_read_working(session)
     )

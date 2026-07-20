@@ -4,28 +4,31 @@ import pandas as pd
 
 from kedro_datasets_experimental.feast.feast_dataset import FeastFeatureSource
 
+_KEY_COLUMNS = ["drug_kg_node_id", "disease_kg_node_id"]
+
 
 def filter_drugs(
     filter_features: FeastFeatureSource,
+    candidates: pd.DataFrame,
     filters: list[dict],
 ) -> pd.DataFrame:
-    """Retrieve the bundled features and keep drugs matching every filter.
+    """Keep the candidate pairs whose feature values match every filter.
 
-    ``filter_features`` loads from ``filter_feature_service`` (feature_a_view +
-    feature_b_view), so the retrieved frame has a ``feature_a`` and a
-    ``feature_b`` column. Each filter ``{"feature": "a", "value": "foo"}`` is
-    applied as ``feature_a == "foo"``; filters are AND-ed together.
+    Reads features for the current ``candidates`` (from the working-set catalog
+    dataset) via a point-in-time join, applies each filter
+    ``{"feature": "a", "value": "foo"}`` as ``feature_a == "foo"`` (AND-ed), and
+    returns the surviving pairs. The result is written back through the catalog
+    (``iterative_output``), narrowing the working set for the next run.
     """
-    # Timestamp-range retrieval (no entity dataframe): return every feature row
-    # written within the window, then filter client-side.
-    end = pd.Timestamp.now(tz="UTC")
-    start = end - pd.Timedelta(days=3650)
-    df = filter_features.get_historical_features(
-        start_date=start.to_pydatetime(),
-        end_date=end.to_pydatetime(),
-    )
+    survivors = candidates[_KEY_COLUMNS].reset_index(drop=True)
+    if survivors.empty:
+        return survivors
 
-    for f in filters:
+    entity_df = survivors.copy()
+    entity_df["event_timestamp"] = pd.Timestamp.now(tz="UTC")
+    df = filter_features.get_historical_features(entity_df=entity_df)
+
+    for f in (dict(x) for x in filters):
         column = f"feature_{f['feature']}"
         if column not in df.columns:
             raise ValueError(
@@ -34,5 +37,6 @@ def filter_drugs(
             )
         df = df[df[column] == f["value"]]
 
-    print(df.to_string(index=False))
-    return df.reset_index(drop=True)
+    survivors = df[_KEY_COLUMNS].reset_index(drop=True)
+    print(survivors.to_string(index=False))
+    return survivors
