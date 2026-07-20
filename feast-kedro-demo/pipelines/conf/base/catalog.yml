@@ -39,3 +39,27 @@ repurposing_scores:
     feature_view_name: repurposing_scores
     write_mode: online_and_offline  # write to both offline (BigQuery) and online (Postgres)
     create_table: true
+
+feature_a:
+  type: kedro_datasets_experimental.feast.FeastDataset
+  repo: *feast_repo
+  save_args:
+    feature_view_name: feature_a_view
+    write_mode: online_and_offline
+    create_table: true
+
+feature_b:
+  type: kedro_datasets_experimental.feast.FeastDataset
+  repo: *feast_repo
+  save_args:
+    feature_view_name: feature_b_view
+    write_mode: online_and_offline
+    create_table: true
+
+# filter_features: read side of the filtering pipeline. Loads from the feature
+# service that bundles feature_a_view + feature_b_view.
+filter_features:
+  type: kedro_datasets_experimental.feast.FeastDataset
+  repo: *feast_repo
+  load_args:
+    feature_service_name: filter_feature_service

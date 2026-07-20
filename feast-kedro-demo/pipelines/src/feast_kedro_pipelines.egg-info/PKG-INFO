@@ -5,6 +5,6 @@ Summary: Kedro pipelines for a drug-repurposing feature store (feature engineeri
 Requires-Python: >=3.10
 Requires-Dist: kedro[server]<2.0,>=1.5
 Requires-Dist: kedro-datasets
-Requires-Dist: feast[gcp,postgres]==0.64.0
+Requires-Dist: feast[gcp,postgres]==0.65.0.dev38
 Requires-Dist: google-cloud-bigquery>=3.0
 Requires-Dist: pandas>=2.0

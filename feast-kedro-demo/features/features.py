@@ -63,3 +63,46 @@ repurposing_scores_fv = FeatureView(
     ],
     source=repurposing_scores_source,
 )
+
+# --- Filterable drug features -------------------------------------------- #
+# Two independent features, each computed by its own Kedro pipeline
+# (``feature_a`` / ``feature_b``) and written to its own feature view. The
+# ``filter_feature_service`` bundles both so the filtering pipeline can read
+# them together and filter drugs on any combination of the two.
+feature_a_source = BigQuerySource(
+    table=f"{GCP_PROJECT}.{BQ_DATASET}.feature_a",
+    timestamp_field="event_timestamp",
+)
+
+feature_a_view = FeatureView(
+    name="feature_a_view",
+    entities=[drug, disease],
+    ttl=timedelta(days=3650),
+    online=True,
+    schema=[
+        Field(name="feature_a", dtype=String),
+    ],
+    source=feature_a_source,
+)
+
+feature_b_source = BigQuerySource(
+    table=f"{GCP_PROJECT}.{BQ_DATASET}.feature_b",
+    timestamp_field="event_timestamp",
+)
+
+feature_b_view = FeatureView(
+    name="feature_b_view",
+    entities=[drug, disease],
+    ttl=timedelta(days=3650),
+    online=True,
+    schema=[
+        Field(name="feature_b", dtype=String),
+    ],
+    source=feature_b_source,
+)
+
+# Bundles both feature views so the filtering pipeline reads them in one go.
+filter_feature_service = FeatureService(
+    name="filter_feature_service",
+    features=[feature_a_view, feature_b_view],
+)
